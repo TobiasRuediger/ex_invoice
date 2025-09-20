@@ -12,6 +12,9 @@ defmodule ExInvoice do
   - **Item Validation**: Checks that all items in the invoice are valid, including names, quantities, and prices. Ensures the total net price of the items matches the expected invoice net.
   - **IBAN Validation**: Validates the IBAN using the `Bankster` library.
 
+  - ** After successful validation, e-invoices are created in ZUGFeRD/Factur-X format using the “CreateFacturX.create_factur_x” function. The profile to be created and the invoice data are transferred to the CreateFacturX.create_factur_x structure in the
+  “factur_x” function.
+
   ## Normal vs. Simplified Invoices:
 
   - **Normal Invoice**: Invoices with a net amount >= 250€ require a full set of validations, including the seller and buyer address, tax information, delivery and issue dates, invoice number, items, and payment terms.
@@ -28,14 +31,14 @@ defmodule ExInvoice do
   def validate_invoice(invoice) do
     # Check if its a normal invoice (>250€) or a simplified one (<250€)
     results =
-      if invoice.invoice_net >= 250 do
+      if invoice.line_total_amount >= 250 do
         # Normal Invoice
         [
           validate_address(invoice.seller_trade_party),
-          validate_address(invoice.buyertradeparty),
+          validate_address(invoice.buyer_trade_party),
           validate_tax_information(
-            invoice.seller_trade_party.vat_number,
-            invoice.seller_trade_party.tax_number
+            invoice.seller_trade_party.vat_id,
+            invoice.seller_trade_party.tax_id
           ),
           validate_date(invoice.issue_date_time),
           validate_date_delivery(
@@ -45,19 +48,22 @@ defmodule ExInvoice do
           ),
           validate_length(invoice.id, 20, true, "Invoice number"),
           validate_tax(
-            invoice.invoice_tax_rate,
-            invoice.invoice_net,
-            invoice.invoice_tax,
+            invoice.rate_applicable_percent,
+            invoice.line_total_amount,
+            invoice.tax_total_amount,
             invoice.invoice_tax_note,
-            invoice.invoice_total
+            invoice.grand_total_amount
           ),
-          validate_all_items(invoice.invoice_items, invoice.invoice_net),
-          validate_iban(invoice.seller_trade_party.bank_IBAN),
+          validate_all_items(
+            invoice.included_supply_chain_trade_line_item,
+            invoice.line_total_amount
+          ),
+          validate_iban(invoice.seller_trade_party.iban_id),
           validate_email(invoice.seller_trade_party.uri_id),
           validate_payment_terms(
             invoice.invoice_payment_skonto_rate,
             invoice.invoice_payment_skonto_days,
-            invoice.invoice_payment_method
+            invoice.payment_methode
           )
         ]
       else
@@ -65,16 +71,19 @@ defmodule ExInvoice do
         [
           validate_address(invoice.seller_trade_party),
           validate_date(invoice.issue_date_time),
-          validate_address(invoice.buyertradeparty),
+          validate_address(invoice.buyer_trade_party),
           validate_tax(
-            invoice.invoice_tax_rate,
-            invoice.invoice_net,
-            invoice.invoice_tax,
+            invoice.rate_applicable_percent,
+            invoice.line_total_amount,
+            invoice.tax_total_amount,
             invoice.invoice_tax_note,
-            invoice.invoice_total
+            invoice.grand_total_amount
           ),
-          validate_all_items(invoice.invoice_items, invoice.invoice_net),
-          validate_iban(invoice.seller_trade_party.bank_IBAN),
+          validate_all_items(
+            invoice.included_supply_chain_trade_line_item,
+            invoice.line_total_amount
+          ),
+          validate_iban(invoice.seller_trade_party.iban_id),
           validate_email(invoice.seller_trade_party.uri_id)
         ]
       end
@@ -87,8 +96,14 @@ defmodule ExInvoice do
 
     case errors do
       [] ->
-        # No error occured. PDF will be printed.
-        ExInvoicePDF.generate_pdf(invoice)
+        # No error occured. PDF will be printed and factur_x xml will be generated
+
+        CreateFacturX.create_factur_x(
+          factur_x(invoice),
+          Path.join("invoices_output", "#{invoice.id}.xml")
+        )
+
+         ExInvoicePDF.generate_pdf(invoice)
         {:ok, "Validation successful. PDF #{invoice.id}.pdf is created."}
 
       _ ->
@@ -116,17 +131,15 @@ defmodule ExInvoice do
   # Functions to check if an adress is complete
   defp validate_address(%{
          trading_business_name: trading_business_name,
-         forename: forename,
-         surname: surname,
+         name: name,
          line_one: line_one,
          city_name: city_name,
          post_code_code: post_code_code,
          country_id: country_id
        }) do
-    with :ok <- validate_name(trading_business_name, surname),
+    with :ok <- validate_name(name),
          {:ok, _} <- validate_length(trading_business_name, 35, false, "trading_business_name"),
-         {:ok, _} <- validate_length(forename, 20, false, "forename"),
-         {:ok, _} <- validate_length(surname, 20, false, "surname"),
+         {:ok, _} <- validate_length(name, 40, false, "name"),
          {:ok, _} <- validate_length(city_name, 20, true, "city_name"),
          {:ok, _} <- validate_length(line_one, 35, true, "line_one"),
          {:ok, _} <- validate_post_code_code(post_code_code, country_id) do
@@ -137,14 +150,9 @@ defmodule ExInvoice do
   end
 
   defp validate_address(_), do: {:error, "Address not complete."}
-  # validate_name(trading_business_name, forename, surname),
-  defp validate_name(nil, nil), do: {:error, "Missing field: surname or trading_business_name"}
-  defp validate_name("", nil), do: {:error, "Missing field: surname or trading_business_name"}
-  defp validate_name(nil, ""), do: {:error, "Missing field: surname or trading_business_name"}
-  defp validate_name("", ""), do: {:error, "Missing field: surname or trading_business_name"}
-
-  # If either surname or company name is valid (not nil or empty)
-  defp validate_name(_, _), do: :ok
+  defp validate_name(nil), do: {:error, "Missing field: name"}
+  defp validate_name(""), do: {:error, "Missing field: name"}
+  defp validate_name(_), do: :ok
 
   defp validate_post_code_code(nil, _country_id), do: {:error, "No postal code provided"}
 
@@ -162,8 +170,8 @@ defmodule ExInvoice do
 
   # Validate German tax numbers and VAT IDs.
 
-  defp validate_tax_information(vat_number, tax_number) do
-    case {validate_tax_number(tax_number), validate_vat_number(vat_number)} do
+  defp validate_tax_information(vat_id, tax_id) do
+    case {validate_tax_id(tax_id), validate_vat_id(vat_id)} do
       {{:ok, _}, {:ok, _}} ->
         {:ok, "Tax and VAT-number correct"}
 
@@ -179,28 +187,28 @@ defmodule ExInvoice do
   end
 
   # Validation of german VAT
-  defp validate_tax_number(nil), do: {:error, "Invalid tax number"}
+  defp validate_tax_id(nil), do: {:error, "Invalid tax number"}
 
-  defp validate_tax_number(number) when is_binary(number) do
+  defp validate_tax_id(number) when is_binary(number) do
     # Pattern for german tax number(10 or 11 chars)
-    tax_number_regex = ~r/^\d{3}\/\d{3}\/\d{5}$/
+    tax_id_regex = ~r/^\d{3}\/\d{3}\/\d{5}$/
 
-    if Regex.match?(tax_number_regex, number) do
-      {:ok, "#{number} Tax_Number_valid"}
+    if Regex.match?(tax_id_regex, number) do
+      {:ok, "#{number} tax_id_valid"}
     else
       {:error, "Invalid tax number"}
     end
   end
 
   # Validation USt-IdNr. (german format)
-  defp validate_vat_number(nil), do: {:error, "No VAT number provided"}
+  defp validate_vat_id(nil), do: {:error, "No VAT number provided"}
 
-  defp validate_vat_number(number) when is_binary(number) do
+  defp validate_vat_id(number) when is_binary(number) do
     # IO.inspect(ExVatcheck.check(number), label: "ExVatcheck Result")
 
     case ExVatcheck.check(number) do
       %ExVatcheck.VAT{valid: true} ->
-        {:ok, "#{number} VAT_Number_valid"}
+        {:ok, "#{number} vat_id_valid"}
 
       %ExVatcheck.VAT{valid: false} ->
         {:error, "Invalid VAT number"}
@@ -291,24 +299,24 @@ defmodule ExInvoice do
   defp validate_payment_method(_), do: {:error, "Invalid payment method format."}
 
   # checks whether the tax rate has been calculated correctly and applied
-  # checks whether the tax rate has been calculated correctly, applied, and if invoice_total matches
-  defp validate_tax(tax_rate, total_net, total_tax, tax_note, invoice_total) do
-    with :ok <- validate_tax_fields(tax_rate, total_net, total_tax, invoice_total),
+  # checks whether the tax rate has been calculated correctly, applied, and if grand_total_amount matches
+  defp validate_tax(tax_rate, total_net, total_tax, tax_note, grand_total_amount) do
+    with :ok <- validate_tax_fields(tax_rate, total_net, total_tax, grand_total_amount),
          :ok <- validate_tax_values(tax_rate, total_net, total_tax),
          :ok <- validate_tax_note_if_exempt(tax_rate, tax_note),
          :ok <- validate_calculated_tax_rate(tax_rate, total_net, total_tax),
-         :ok <- validate_invoice_total(total_net, total_tax, invoice_total) do
+         :ok <- validate_grand_total_amount(total_net, total_tax, grand_total_amount) do
       {:ok, "#{tax_rate}% tax applied correctly"}
     else
       {:error, msg} -> {:error, msg}
     end
   end
 
-  # Check if tax, total_net, total_tax, and invoice_total fields are not nil
+  # Check if tax, total_net, total_tax, and grand_total_amount fields are not nil
   defp validate_tax_fields(nil, _, _, _), do: {:error, "tax: missing field"}
   defp validate_tax_fields(_, nil, _, _), do: {:error, "tax: missing field"}
   defp validate_tax_fields(_, _, nil, _), do: {:error, "tax: missing field"}
-  defp validate_tax_fields(_, _, _, nil), do: {:error, "invoice_total: missing field"}
+  defp validate_tax_fields(_, _, _, nil), do: {:error, "grand_total_amount: missing field"}
   defp validate_tax_fields(_, _, _, _), do: :ok
 
   # Validate tax_rate, total_net, and total_tax values
@@ -340,13 +348,19 @@ defmodule ExInvoice do
     end
   end
 
-  # Validate that the total_net + total_tax matches the invoice_total
-  defp validate_invoice_total(total_net, total_tax, invoice_total) do
+  # Validate that the total_net + total_tax matches the grand_total_amount
+  defp validate_grand_total_amount(total_net, total_tax, grand_total_amount) do
     expected_total = total_net + total_tax
 
-    if abs(expected_total - invoice_total) > 0.01 do
+    formatted_expected_total =
+      Decimal.to_string(Decimal.round(Decimal.from_float(expected_total), 2), :normal)
+
+    #    |> Decimal.round(2)
+    #    |> Decimal.to_string(:normal)
+
+    if abs(expected_total - grand_total_amount) > 0.01 do
       {:error,
-       "Invoice total does not match: expected #{expected_total}, but got #{invoice_total}"}
+       "Invoice total does not match: expected #{formatted_expected_total}, but got #{grand_total_amount}"}
     else
       :ok
     end
@@ -381,15 +395,21 @@ defmodule ExInvoice do
 
       if errors == [] do
         net_price =
-          Enum.reduce(items, 0, fn item, acc ->
-            acc + item[:item_total_net]
+          Enum.reduce(items, 0.00, fn item, acc ->
+            acc + item[:line_total_amount]
           end)
+
+        formatted_net_price =
+          Decimal.to_string(Decimal.round(Decimal.from_float(net_price), 2), :normal)
+
+        #     |> Decimal.round(2)
+        #     |> Decimal.to_string(:normal)
 
         if net_price == expected_net do
           {:ok, "All items are valid. Net value of all items are #{net_price} €"}
         else
           {:error,
-           "The calculated net price #{net_price} does not match the expected invoice net #{expected_net}."}
+           "The calculated net price #{formatted_net_price} does not match the expected invoice net #{expected_net}."}
         end
       else
         error_messages =
@@ -407,46 +427,53 @@ defmodule ExInvoice do
     missing_or_invalid_fields =
       item
       |> Enum.filter(fn
-        {:item_quantity, quantity}
+        {:billed_quantity, quantity}
         when is_nil(quantity) or not is_number(quantity) or quantity < 0 ->
           true
 
-        {:item_price, price} when is_nil(price) or not is_number(price) or price < 0 ->
+        {:charge_amount, price} when is_nil(price) or not is_number(price) or price < 0 ->
           true
 
-        {:item_total_net, total_net} when is_nil(total_net) or not is_number(total_net) ->
+        {:line_total_amount, total_net} when is_nil(total_net) or not is_number(total_net) ->
           true
 
         _ ->
           false
       end)
       |> Enum.map(fn
-        {:item_quantity, _} -> "quantity"
-        {:item_price, _} -> "price"
-        {:item_total_net, _} -> "total_net"
+        {:billed_quantity, _} -> "quantity"
+        {:charge_amount, _} -> "price"
+        {:line_total_amount, _} -> "total_net"
       end)
 
     case missing_or_invalid_fields do
       [] ->
-        # First, validate the length of item_name using validate_length/4
-        case validate_length(item[:item_name], 25, true, "item_name") do
+        # First, validate the length of name using validate_length/4
+        case validate_length(item[:name], 25, true, "name") do
           {:ok, _} ->
-            # Proceed with further validation if item_name is valid
-            quantity = item[:item_quantity]
-            price = item[:item_price]
-            total_net = item[:item_total_net]
+            # Proceed with further validation if name is valid
+            quantity = item[:billed_quantity]
+            price = item[:charge_amount]
+            total_net = item[:line_total_amount]
 
-            # Check if quantity * price equals item_total_net
+            # Check if quantity * price equals line_total_amount
             calculated_total = quantity * price
+
+            formatted_calculated_total =
+              Decimal.to_string(Decimal.round(Decimal.from_float(calculated_total), 2), :normal)
+
+            #     |> Decimal.round(2)
+            #      |> Decimal.to_string(:normal)
 
             if calculated_total == total_net do
               {:ok, total_net}
             else
-              {:error, "Invalid total net: expected #{calculated_total}, but got #{total_net}"}
+              {:error,
+               "Invalid total net: expected #{formatted_calculated_total}, but got #{total_net}"}
             end
 
           {:error, msg} ->
-            # Return the error from validate_length/4 if item_name is invalid
+            # Return the error from validate_length/4 if name is invalid
             {:error, msg}
         end
 
@@ -468,5 +495,280 @@ defmodule ExInvoice do
       _ ->
         {:error, "Unexpected response from IBAN validation."}
     end
+  end
+
+  #Transfers the invoice item data to the item group “b_included_supply_chain_trade_line_item”
+  defp set_factur_x_items(%{included_supply_chain_trade_line_item: items}) do
+    Enum.map(items, fn item -> factur_x_items(item) end)
+  end
+
+  #Struct from the FacturXIsctli module for transferring invoice item data for the creation of ZUGFeRD/Factur-X e-invoices
+  def factur_x_items(item) do
+    %FacturXIsctli{
+      b_associated_document_line_document_line_id: nil,
+      b_associated_document_line_document_included_note_content: nil,
+      b_specified_trade_product_global_id: nil,
+      b_specified_trade_product_global_id_scheme_id: nil,
+      e_specified_trade_product_seller_assigned_id: item.seller_assigned_id,
+      e_specified_trade_product_buyer_assigned_id: nil,
+      b_specified_trade_product_name: item.name,
+      e_specified_trade_product_description: item.description,
+      e_class_code_list_id: nil,
+      e_class_code_list_version_id: nil,
+      e_origin_trade_country_id: nil,
+      e_buyer_order_referenced_document_line_id: item.line_id,
+      b_gross_price_product_trade_price_charge_amount: 11.90,
+      b_gross_price_product_trade_price_basis_quantity: nil,
+      b_gross_price_product_trade_price_basis_quantity_unit_code: nil,
+      b_applied_trade_allowance_charge_price_allowance_charge_indicator_indicator: nil,
+      b_applied_trade_allowance_charge_price_allowance_actual_amount: item.actual_amount,
+      b_net_price_product_trade_price_charge_amount: item.charge_amount,
+      b_net_price_product_trade_price_basis_quantity: nil,
+      b_net_price_product_trade_price_basis_quantity_unit_code: nil,
+      b_billed_quantity: item.billed_quantity,
+      b_billed_quantity_unit_code: "H87",
+      b_specified_line_trade_settlement_applicable_trade_tax_category_code: "S",
+      # becomes a mandatory field under rule BR-S-8
+      b_specified_line_trade_settlement_applicable_trade_tax_rate_applicable_percent:
+        item.rate_applicable_percent,
+      b_specified_line_trade_settlement_billing_specified_period_start_date_time_date_time_string:
+        nil,
+      b_specified_line_trade_settlement_billing_specified_period_end_date_time_date_time_string:
+        nil,
+      b_specified_trade_settlement_line_monetary_summation_line_total_amount:
+        item.line_total_amount,
+      e_specified_line_trade_settlement_additional_referenced_document_issuer_assigned_id: nil,
+      e_specified_line_trade_settlement_additional_referenced_document_type_code: nil,
+      e_specified_line_trade_settlement_additional_referenced_document_reference_type_code: nil,
+      e_specified_line_trade_settlement_receivable_specified_trade_accounting_account_id: nil,
+      e_applicable_product_characteristic: [
+        e_applicable_product_characteristic_description: nil,
+        e_value: nil
+      ],
+      b_specified_trade_allowance_charge: [
+        # true Charge / false Allowance
+        b_specified_trade_allowance_charge_charge_indicator: nil,
+        e_specified_trade_allowance_charge_calculation_percent: item.calculation_percent,
+        e_specified_trade_allowance_charge_basis_amount: nil,
+        b_specified_trade_allowance_charge_actual_amount: item.actual_amount,
+        # If a discount or charge applies, it must be filled in
+        b_specified_trade_allowance_charge_reason_code: nil,
+        # becomes a mandatory field under rule BR-S-8
+        b_specified_trade_allowance_charge_reason: nil
+      ]
+    }
+  end
+
+  # Struct from the CreateFacturX module for transferring invoice data for the creation of ZUGFeRD/Factur-X e-invoices
+  def factur_x(invoice) do
+    %CreateFacturX{
+      m_profil_factur_x: "EN16931",
+      m_business_process_specified_document_context_parameter_id: "ex_invoice_test",
+      m_exchanged_document_id: invoice.id,
+      m_exchanged_document_type_code: invoice.typecode,
+      m_issue_date_time_date_time_string: invoice.issue_date_time,
+      m_buyer_reference: invoice.buyer_reference,
+      w_seller_trade_party_id: nil,
+      w_seller_trade_party_global_id: nil,
+      w_seller_trade_party_global_id_scheme_id: nil,
+      m_seller_trade_party_name: invoice.seller_trade_party.name,
+      e_seller_trade_party_description: nil,
+      m_seller_trade_party_specified_legal_organization_id: nil,
+      m_seller_trade_party_specified_legal_organization_id_scheme_id: nil,
+      w_seller_trade_party_specified_legal_organization_trading_business_name:
+        invoice.seller_trade_party.trading_business_name,
+      e_seller_trade_party_defined_trade_contact_person_name: nil,
+      e_seller_trade_party_defined_trade_contact_department_name: nil,
+      e_seller_trade_party_defined_trade_contact_telephone_universal_communication_complete_number:
+        invoice.seller_trade_party.tel_complete_number,
+      e_seller_trade_party_defined_trade_contact_emailuri_universal_communication_uriid:
+        invoice.seller_trade_party.uri_id,
+      w_seller_trade_party_postal_trade_address_postcode_code:
+        invoice.seller_trade_party.post_code_code,
+      w_seller_trade_party_postal_trade_address_line_one: invoice.seller_trade_party.line_one,
+      w_seller_trade_party_postal_trade_address_line_two: nil,
+      w_seller_trade_party_postal_trade_address_line_three: nil,
+      w_seller_trade_party_postal_trade_address_city_name: invoice.seller_trade_party.city_name,
+      m_seller_trade_party_postal_trade_address_country_id: invoice.seller_trade_party.country_id,
+      w_seller_trade_party_postal_trade_address_country_sub_division_name:
+        invoice.seller_trade_party.country_sub_division_name,
+      w_seller_trade_party_uri_universal_communication_uriid: nil,
+      w_seller_trade_party_uri_universal_communication_uriid_scheme_id: nil,
+      m_specified_tax_registration_vat_identifier_id: invoice.seller_trade_party.vat_id,
+      m_specified_tax_registration_vat_identifier_id_scheme_id: "VA",
+      e_specified_tax_registration_local_tax_id: invoice.seller_trade_party.tax_id,
+      e_specified_tax_registration_local_tax_id_scheme_id: "FC",
+      w_buyer_trade_party_id: nil,
+      w_buyer_trade_party_global_id: nil,
+      w_buyer_trade_party_global_id_scheme_id: nil,
+      m_buyer_trade_party_name: invoice.buyer_trade_party.name,
+      m_buyer_trade_party_specified_legal_organization_id: nil,
+      m_buyer_trade_party_specified_legal_organization_id_scheme_id: nil,
+      e_buyer_trade_party_specified_legal_organization_trading_business_name:
+        invoice.buyer_trade_party.trading_business_name,
+      e_buyer_trade_party_defined_trade_contact_person_name: nil,
+      e_buyer_trade_party_defined_trade_contact_department_name: nil,
+      e_buyer_trade_party_defined_trade_contact_telephone_universal_communication: nil,
+      e_buyer_trade_party_defined_trade_contact_telephone_universal_communication_complete_number:
+        nil,
+      e_buyer_trade_party_defined_trade_contact_emailuri_universal_communication: nil,
+      e_buyer_trade_party_defined_trade_contact_emailuri_universal_communication_uriid: nil,
+      w_buyer_trade_party_postal_trade_address_postcode_code:
+        invoice.buyer_trade_party.post_code_code,
+      w_buyer_trade_party_postal_trade_address_line_one: invoice.buyer_trade_party.line_one,
+      w_buyer_trade_party_postal_trade_address_line_two: invoice.buyer_trade_party.line_two,
+      w_buyer_trade_party_postal_trade_address_line_three: invoice.buyer_trade_party.line_three,
+      w_buyer_trade_party_postal_trade_address_city_name: invoice.buyer_trade_party.city_name,
+      w_buyer_trade_party_postal_trade_address_country_id: invoice.buyer_trade_party.country_id,
+      w_buyer_trade_party_postal_trade_address_country_sub_division_name:
+        invoice.buyer_trade_party.country_sub_division_name,
+      w_buyer_trade_partyuri_universal_communication_uriid: nil,
+      w_buyer_trade_partyuri_universal_communication_uriid_scheme_id: nil,
+      w_buyer_trade_party_specified_tax_registration_id: nil,
+      w_buyer_trade_party_specified_tax_registration_id_scheme_id: nil,
+      w_seller_tax_representative_trade_party_name: nil,
+      w_seller_tax_representative_trade_party_postal_trade_address_postcode_code: nil,
+      w_seller_tax_representative_trade_party_postal_trade_address_line_one: nil,
+      w_seller_tax_representative_trade_party_postal_trade_address_line_two: nil,
+      w_seller_tax_representative_trade_party_postal_trade_address_line_three: nil,
+      w_seller_tax_representative_trade_party_postal_trade_address_city_name: nil,
+      w_seller_tax_representative_trade_party_postal_trade_address_country_id: nil,
+      w_seller_tax_representative_trade_party_postal_trade_address_country_sub_division_name: nil,
+      w_seller_tax_representative_trade_party_specified_tax_registration_id: nil,
+      w_seller_tax_representative_trade_party_specified_tax_registration_id_scheme_id: nil,
+      e_applicable_header_trade_agreement_seller_order_referenced_document_issuer_assigned_id:
+        invoice.seller_order_referenced_document,
+      m_applicable_header_trade_agreement_buyer_order_referenced_document_issuer_assigned_id: nil,
+      w_applicable_header_trade_agreement_contract_referenced_document_issuer_assigned_id: nil,
+      e_additional_referenced_document_additional_supporting_documents_issuer_assigned_id: nil,
+      e_additional_referenced_document_additional_supporting_documents_uriid: nil,
+      e_additional_referenced_document_additional_supporting_documents_type_code: nil,
+      e_additional_referenced_document_additional_supporting_documents_name: nil,
+      e_additional_referenced_document_additional_supporting_documents_attachment_binary_object_mime_code:
+        nil,
+      e_additional_referenced_document_additional_supporting_documents_attachment_binary_object_filename:
+        nil,
+      e_additional_referenced_document_tender_lot_issuer_assigned_id: nil,
+      e_additional_referenced_document_tender_lot_type_code: nil,
+      e_additional_referenced_document_invoiced_object_issuer_assigned_id: nil,
+      e_additional_referenced_document_invoiced_object_type_code: nil,
+      e_additional_referenced_document_invoiced_object_reference_type_code: nil,
+      e_specified_procuring_project_id: nil,
+      e_specified_procuring_project_name: nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_id: nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_global_id: nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_global_id_scheme_id: nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_name: nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_postal_trade_address_postcode_code:
+        nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_postal_trade_address_line_one: nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_postal_trade_address_line_two: nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_postal_trade_address_line_three: nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_postal_trade_address_city_name: nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_postal_trade_address_country_id: nil,
+      w_applicable_header_trade_delivery_ship_to_trade_party_postal_trade_address_country_sub_division_name:
+        nil,
+      w_applicable_header_trade_delivery_actual_delivery_supply_chain_event_occurrence_date_time_date_time_string:
+        invoice.occurrence_date_time,
+      w_applicable_header_trade_delivery_despatch_advice_referenced_document_issuer_assigned_id:
+        nil,
+      e_applicable_header_trade_delivery_receiving_advice_referenced_document_issuer_assigned_id:
+        nil,
+      w_creditor_reference_id: nil,
+      w_payment_reference: nil,
+      w_tax_currency_code: nil,
+      m_invoice_currency_code: invoice.invoice_currency_code,
+      w_applicable_header_trade_settlement_payee_trade_party_id: nil,
+      w_applicable_header_trade_settlement_payee_trade_party_global_id: nil,
+      w_applicable_header_trade_settlement_payee_trade_party_global_id_scheme_id: nil,
+      w_applicable_header_trade_settlement_payee_trade_party_name: nil,
+      w_applicable_header_trade_settlement_payee_trade_party_specified_legal_organization_id: nil,
+      w_applicable_header_trade_settlement_payee_trade_party_specified_legal_organization_id_scheme_id:
+        nil,
+      w_specified_trade_settlement_payment_means_type_code: invoice.type_code,
+      e_information: nil,
+      e_applicable_trade_settlement_financial_card_id: nil,
+      e_cardholder_name: nil,
+      w_payer_party_debtor_financial_account_iban_id: nil,
+      w_payee_party_creditor_financial_account_iban_id: invoice.seller_trade_party.iban_id,
+      e_account_name: invoice.seller_trade_party.account_name,
+      w_proprietary_id: nil,
+      e_payee_specified_creditor_financial_institution: nil,
+      e_bic_id: invoice.seller_trade_party.bic_id,
+      w_applicable_header_trade_settlement_applicable_trade_tax_calculated_amount:
+        invoice.tax_total_amount,
+      w_applicable_header_trade_settlement_applicable_trade_tax_exemption_reason: nil,
+      w_applicable_trade_tax_basis_amount: invoice.line_total_amount,
+      w_applicable_header_trade_settlement_applicable_trade_tax_category_code: "S",
+      w_applicable_header_trade_settlement_applicable_trade_tax_exemption_reason_code: nil,
+      e_date_string: nil,
+      w_due_date_type_code: nil,
+      w_applicable_header_trade_settlement_applicable_trade_tax_rate_applicable_percent:
+        invoice.rate_applicable_percent,
+      w_applicable_header_trade_settlement_billing_specified_period_start_date_time_date_time_string:
+        nil,
+      w_applicable_header_trade_settlement_billing_specified_period_end_date_time_date_time_string:
+        nil,
+      w_specified_trade_allowance_charge_document_level_allowances_charge_indicator: nil,
+      w_specified_trade_allowance_charge_document_level_allowances_charge_indicator_indicator:
+        nil,
+      w_specified_trade_allowance_charge_document_level_allowances_calculation_percent: nil,
+      w_specified_trade_allowance_charge_document_level_allowances_basis_amount: nil,
+      w_specified_trade_allowance_charge_document_level_allowances_actual_amount: nil,
+      w_specified_trade_allowance_charge_document_level_allowances_reason_code: nil,
+      w_specified_trade_allowance_charge_document_level_allowances_reason: nil,
+      w_specified_trade_allowance_charge_document_level_allowances_category_trade_tax_category_code:
+        nil,
+      w_specified_trade_allowance_charge_document_level_allowances_category_trade_tax_rate_applicable_percent:
+        nil,
+      w_specified_trade_allowance_charge_document_level_charges_charge_indicator_indicator: nil,
+      w_specified_trade_allowance_charge_document_level_charges_calculation_percent: nil,
+      w_specified_trade_allowance_charge_document_level_charges_basis_amount: nil,
+      w_specified_trade_allowance_charge_document_level_charges_actual_amount: nil,
+      w_specified_trade_allowance_charge_document_level_charges_reason_code: nil,
+      w_specified_trade_allowance_charge_document_level_charges_reason: nil,
+      w_specified_trade_allowance_charge_document_level_charges_category_trade_tax_type_code: nil,
+      w_specified_trade_allowance_charge_document_level_charges_category_trade_tax_category_code:
+        nil,
+      w_specified_trade_allowance_charge_document_level_charges_category_trade_tax_rate_applicable_percent:
+        nil,
+      # Committed by positive payment amount BR-CO-25
+      w_specified_trade_payment_terms_description:
+      "Rechnungsbetrag zahlbar per #{invoice.payment_methode} abzüglich #{invoice.invoice_payment_skonto_rate}%
+      Skonto innerhalb von #{invoice.invoice_payment_skonto_days} Tagen ab Rechnungsdatum",
+      w_due_date_date_time_date_time_string: nil,
+      w_direct_debit_mandate_id: nil,
+      w_specified_trade_settlement_header_monetary_summation_line_total_amount:
+        invoice.line_total_amount,
+      w_specified_trade_settlement_header_monetary_summation_charge_total_amount: nil,
+      w_specified_trade_settlement_header_monetary_summation_allowance_total_amount: nil,
+      m_tax_basis_total_amount: invoice.line_total_amount,
+      m_tax_total_amount_invoice_total_amount: invoice.tax_total_amount,
+      m_tax_total_amount_invoice_total_amount_currency_id: "EUR",
+      w_tax_total_amount_invoice_total_amount_invat: nil,
+      w_tax_total_amount_invoice_total_amount_invat_currency_id: nil,
+      e_rounding_amount: nil,
+      m_specified_trade_settlement_header_monetary_summation_grand_total_amount:
+        invoice.grand_total_amount,
+      w_total_prepaid_amount: nil,
+      m_due_payable_amount: nil,
+      w_applicable_header_trade_settlement_invoice_referenced_document_issuer_assigned_id: nil,
+      w_applicable_header_trade_settlement_invoice_referenced_document_formatted_issue_date_time_date_time_string:
+        nil,
+      w_applicable_header_trade_settlement_receivable_specified_trade_accounting_account_id: nil,
+      b_included_supply_chain_trade_line_item: set_factur_x_items(invoice),
+      w_exchanged_document_included_note: [
+        [
+          w_exchanged_document_included_note_content:
+            to_string(invoice.seller_trade_party.legal_court) <>
+              " " <> to_string(invoice.seller_trade_party.legal_HRB),
+          w_exchanged_document_included_note_subject_code: nil
+        ],
+        [
+          w_exchanged_document_included_note_content: invoice.included_note,
+          w_exchanged_document_included_note_subject_code: nil
+        ]
+      ]
+    }
   end
 end

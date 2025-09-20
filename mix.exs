@@ -4,7 +4,7 @@ defmodule ExInvoice.MixProject do
   def project do
     [
       app: :ex_invoice,
-      version: "0.1.0",
+      version: "0.1.1",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -71,7 +71,21 @@ defmodule ExInvoice.MixProject do
       # Validate VAT identification numbers using the VIES service
       # https://hexdocs.pm/ex_vatcheck/ExVatcheck.html
       # https://github.com/taxjar/ex_vatcheck
-      {:ex_vatcheck, "~> 0.3.1"}
+      {:ex_vatcheck, "~> 0.3.1"},
+
+      # An Elixir library for building XML
+      # https://hexdocs.pm/xml_builder
+      # https://github.com/joshnuss/xml_builder
+      {:xml_builder, "~> 2.3"},
+
+      # An Elixir date/time library
+      # https://hexdocs.pm/timex
+      # https://github.com/bitwalker/timex
+      {:timex, "~> 3.0"},
+
+      # An Elixir decimal library
+      # https://hexdocs.pm/decimal
+      {:decimal, "~> 2.3"}
     ]
   end
 end

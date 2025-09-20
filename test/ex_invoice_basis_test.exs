@@ -2,88 +2,92 @@ defmodule ExInvoiceTest do
   use ExUnit.Case
 
   @valid_invoice %{
-    id: "2024_Q3_234234",
-    typecode: 74,
+    id: "2025_Q3_234234",
+    typecode: 380,
     buyer_reference: "2INTER00",
     seller_order_referenced_document: nil,
-    notes1: nil,
-    currency_used: false,
-    issue_date_time: ~D[2024-08-10],
-    occurrence_date_time: ~D[2024-08-12],
+    delivery_type_code: nil,
+    invoice_currency_code: "EUR",
+    issue_date_time: ~D[2025-08-10],
+    occurrence_date_time: ~D[2025-08-12],
     note_date: nil,
     seller_trade_party: %{
-      forename: "Biller_forename",
-      surname: "Biller_surname",
-      trading_business_name: "Biller_trading_business_name_name",
+      name: "Biller_name",
+      trading_business_name: "Biller_trading_business_name",
       line_one: "Biller_line_one",
       city_name: "Biller_city_name",
       post_code_code: "80333",
       country_sub_division_name: "Bayern",
       country_id: "DE",
       notes: nil,
-      vat_number: "DE812526315",
-      tax_number: "123/456/78910",
+      vat_id: "DE812526315",
+      tax_id: "123/456/78910",
       legal_court: "Amtsgericht München",
       legal_HRB: "1234567",
       bank_name: "Sparkasse München",
-      bank_IBAN: "DE89370400440532013000",
-      bank_BIC: "1234",
-      bank_owner: "biller_bank_owner",
+      iban_id: "DE89370400440532013000",
+      bic_id: "1234",
+      account_name: "biller_account_name",
       uri_id: "Biller_Mail@test.de",
-      contact_tel: "1234567890",
-      contact_fax: "0987654321",
+      tel_complete_number: "1234567890",
+      fax_complete_number: "0987654321",
       contact_web: "http://example.com"
     },
-    buyertradeparty: %{
-      forename: nil,
-      surname: nil,
-      trading_business_name: "customer",
+    buyer_trade_party: %{
+      # Pflichtfeld
+      name: "customer name",
+      trading_business_name: "customer trading name",
       line_one: "Customer_line_one. 345",
-      address2: nil,
-      address3: nil,
+      line_two: nil,
+      line_three: nil,
       city_name: "München",
       post_code_code: "80333",
       country_sub_division_name: "Bayern",
       country_id: "DE",
       notes: nil
     },
-    invoice_items: [
+    included_supply_chain_trade_line_item: [
       %{
-        item_number: "A1314",
-        item_name: "Test",
-        item_description: "Item1_Description",
+        seller_assigned_id: "A1314",
+        name: "Test",
+        description: "Item1_Description",
         item_comments: "",
-        item_quantity: 2,
-        item_price: 500,
-        item_discount_amount: 0,
-        item_discount_percentage: 0,
-        item_reference: nil,
-        item_tax_rate: 19.0,
-        item_total_net: 1000,
-        item_total_tax: 380
+        billed_quantity: 2,
+        charge_amount: 500.00,
+        actual_amount: 0.00,
+        calculation_percent: 0,
+        line_id: nil,
+        rate_applicable_percent: 19.0,
+        line_total_amount: 1000.00,
+        tax_total_amount: 190.00
       },
       %{
-        item_number: "B2324",
-        item_name: "Zweite Artikel",
-        item_description: "Item2_Description",
+        seller_assigned_id: "B2324",
+        name: "Zweite Artikel",
+        description: "Item2_Description",
         item_comments: "",
-        item_quantity: 1,
-        item_price: 1000,
-        item_discount_amount: 10,
-        item_discount_percentage: 5,
-        item_reference: nil,
-        item_tax_rate: 19.0,
-        item_total_net: 1000,
-        item_total_tax: 190
+        billed_quantity: 1,
+        charge_amount: 1000.00,
+        # actual_amount: 10,
+        # Set to 0 so that it fits the PDF display
+        actual_amount: 0.00,
+        # calculation_percent: 5,
+        # Set to 0 so that it fits the PDF display
+        calculation_percent: 0,
+        line_id: nil,
+        rate_applicable_percent: 19.0,
+        line_total_amount: 1000.00,
+        tax_total_amount: 190.00
       }
     ],
-    invoice_net: 2000,
-    invoice_tax: 380,
-    invoice_tax_rate: 19,
-    invoice_total: 2380,
+    line_total_amount: 2000.00,
+    tax_total_amount: 380.00,
+    rate_applicable_percent: 19,
+    grand_total_amount: 2380.00,
     invoice_payment_skonto_rate: 2,
     invoice_payment_skonto_days: 14,
-    invoice_payment_method: "Überweisung",
+    type_code: 30,
+    payment_methode: "Überweisung",
     invoice_tax_note: nil,
     included_note:
       "Sie sind gesetzlich verpflichtet diese Rechnung mindestens 2 Jahre – als umsatzsteuerlicher Unternehmer 10 Jahre – aufzubewahren. Die Aufbewahrungsfrist beginnt mit Schluss dieses Kalenderjahres."
@@ -92,7 +96,7 @@ defmodule ExInvoiceTest do
   # Initial test without changes
   test "Valid invoice structure" do
     assert ExInvoice.validate_invoice(@valid_invoice) ==
-             {:ok, "Validation successful. PDF 2024_Q3_234234.pdf is created."}
+             {:ok, "Validation successful. PDF 2025_Q3_234234.pdf is created."}
   end
 
   # invoice ID too long
@@ -120,16 +124,16 @@ defmodule ExInvoiceTest do
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice 2024_Q3_234234: Invalid date format or value, Delivery Date 2024-08-12 is not after Invoice Date "}
+              "Validation failed for invoice 2025_Q3_234234: Invalid date format or value, Delivery Date 2025-08-12 is not after Invoice Date "}
   end
 
   # Test issue_date_time after deliver_date
   test "issue_date_time after deliver_date" do
-    invalid_invoice = Map.put(@valid_invoice, :issue_date_time, ~D[2024-08-15])
+    invalid_invoice = Map.put(@valid_invoice, :issue_date_time, ~D[2025-08-15])
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice 2024_Q3_234234: Delivery Date 2024-08-12 is not after Invoice Date 2024-08-15"}
+              "Validation failed for invoice 2025_Q3_234234: Delivery Date 2025-08-12 is not after Invoice Date 2025-08-15"}
   end
 
   # Test issue_date_time = nil
@@ -146,7 +150,7 @@ defmodule ExInvoiceTest do
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice #{invalid_invoice.id}: Invalid date format or value, Delivery Date 2024-08-12 is not after Invoice Date 12343243245"}
+              "Validation failed for invoice #{invalid_invoice.id}: Invalid date format or value, Delivery Date 2025-08-12 is not after Invoice Date 12343243245"}
   end
 
   # Test occurrence_date_time wrong format
@@ -165,7 +169,7 @@ defmodule ExInvoiceTest do
       |> Map.put(:note_date, "Rechnungsdatum = Lieferdatum")
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:ok, "Validation successful. PDF 2024_Q3_234234.pdf is created."}
+             {:ok, "Validation successful. PDF 2025_Q3_234234.pdf is created."}
   end
 
   # Test occurrence_date_time = nil Rechnungsdatum = NIX
@@ -311,7 +315,7 @@ defmodule ExInvoiceTest do
       )
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:ok, "Validation successful. PDF 2024_Q3_234234.pdf is created."}
+             {:ok, "Validation successful. PDF 2025_Q3_234234.pdf is created."}
   end
 
   # Test for postal code outside of Germany
@@ -324,110 +328,78 @@ defmodule ExInvoiceTest do
     invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:ok, "Validation successful. PDF 2024_Q3_234234.pdf is created."}
+             {:ok, "Validation successful. PDF 2025_Q3_234234.pdf is created."}
   end
 
   # Test name too long
-  test "Invalid trading_business_name name too long" do
+  test "Invalid name too long" do
     invalid_invoice =
       Map.put(
         @valid_invoice,
         :seller_trade_party,
         Map.put(
           @valid_invoice.seller_trade_party,
-          :trading_business_name,
-          "1234567891011121314151617181920212223"
+          :name,
+          "123456789101112131415161718192021222345672"
         )
       )
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice #{invalid_invoice.id}: trading_business_name exceeds maximum length of 35 characters."}
+              "Validation failed for invoice #{invalid_invoice.id}: name exceeds maximum length of 40 characters."}
   end
 
-  # Test trading_business_name = nil
-  test "Test trading_business_name =nil" do
+  # Test name = nil
+  test "Test name =nil" do
     invalid_invoice =
       Map.put(
         @valid_invoice,
-        :buyertradeparty,
+        :buyer_trade_party,
         Map.put(
-          @valid_invoice.buyertradeparty,
-          :trading_business_name,
+          @valid_invoice.buyer_trade_party,
+          :name,
           nil
         )
       )
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:error,
-              "Validation failed for invoice #{invalid_invoice.id}: Missing field: surname or trading_business_name"}
+             {:error, "Validation failed for invoice #{invalid_invoice.id}: Missing field: name"}
   end
 
-  # Test Invalid trading_business_name, forename, and surname missing
-  test "Invalid trading_business_name, forename, and surname missing" do
+  # Test Valid trading_business_name and name missing
+  test "Valid trading_business_name and name" do
     invalid_address =
       @valid_invoice.seller_trade_party
-      |> Map.put(:trading_business_name, nil)
-      |> Map.put(:forename, nil)
-      |> Map.put(:surname, nil)
+      |> Map.put(:trading_business_name, "trading_business_name")
+      |> Map.put(:name, "costumer name")
 
     invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:error,
-              "Validation failed for invoice #{invalid_invoice.id}: Missing field: surname or trading_business_name"}
-  end
-
-  # Test Valid trading_business_name, forename, and surname missing
-  test "Valid trading_business_name, forename, and surname missing" do
-    invalid_address =
-      @valid_invoice.seller_trade_party
-      |> Map.put(:trading_business_name, "trading_business_name Name")
-      |> Map.put(:forename, nil)
-      |> Map.put(:surname, nil)
-
-    invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
-
-    assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:ok, "Validation successful. PDF 2024_Q3_234234.pdf is created."}
-  end
-
-  # Test Invalid trading_business_name, Valid forename, and surname missing
-  test "Invalid trading_business_name, Valid forename, and surname missing" do
-    invalid_address =
-      @valid_invoice.seller_trade_party
-      |> Map.put(:trading_business_name, nil)
-      |> Map.put(:forename, "Vorname")
-      |> Map.put(:surname, nil)
-
-    invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
-
-    assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:error,
-              "Validation failed for invoice #{invalid_invoice.id}: Missing field: surname or trading_business_name"}
+             {:ok, "Validation successful. PDF 2025_Q3_234234.pdf is created."}
   end
 
   # TAX
   # Test Invalid VAT number, tax ok
   test "Invalid VAT number, tax ok" do
-    invalid_invoice = put_in(@valid_invoice[:seller_trade_party][:vat_number], "INVALID")
+    invalid_invoice = put_in(@valid_invoice[:seller_trade_party][:vat_id], "INVALID")
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:ok, "Validation successful. PDF 2024_Q3_234234.pdf is created."}
+             {:ok, "Validation successful. PDF 2025_Q3_234234.pdf is created."}
   end
 
   # Test Invalid Paymet method
   test "Invalid payment method" do
-    invalid_invoice = Map.put(@valid_invoice, :invoice_payment_method, "Bitcoin")
+    invalid_invoice = Map.put(@valid_invoice, :payment_methode, "Bitcoin")
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
               "Validation failed for invoice #{invalid_invoice.id}: Payment method must be one of Überweisung, Kreditkarte, PayPal"}
   end
 
-  # Test invalid tax rate invoice_tax_rate
+  # Test invalid tax rate rate_applicable_percent
   test "Invalid tax rate" do
-    invalid_invoice = Map.put(@valid_invoice, :invoice_tax_rate, 3)
+    invalid_invoice = Map.put(@valid_invoice, :rate_applicable_percent, 3)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
@@ -440,7 +412,7 @@ defmodule ExInvoiceTest do
       Map.put(
         @valid_invoice,
         :seller_trade_party,
-        Map.put(@valid_invoice.seller_trade_party, :bank_IBAN, "INVALID_IBAN")
+        Map.put(@valid_invoice.seller_trade_party, :iban_id, "INVALID_IBAN")
       )
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
@@ -453,47 +425,47 @@ defmodule ExInvoiceTest do
   test "Valid German tax number (10 digits)" do
     invalid_address =
       @valid_invoice.seller_trade_party
-      |> Map.put(:tax_number, "123/456/78901")
-      |> Map.put(:vat_number, nil)
+      |> Map.put(:tax_id, "123/456/78901")
+      |> Map.put(:vat_id, nil)
 
     invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:ok, "Validation successful. PDF 2024_Q3_234234.pdf is created."}
+             {:ok, "Validation successful. PDF 2025_Q3_234234.pdf is created."}
   end
 
   # Test german Valid German tax number (11 digits)
   test "Valid German tax number (11 digits)" do
     invalid_address =
       @valid_invoice.seller_trade_party
-      |> Map.put(:tax_number, "123/456/12345")
-      |> Map.put(:vat_number, nil)
+      |> Map.put(:tax_id, "123/456/12345")
+      |> Map.put(:vat_id, nil)
 
     invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:ok, "Validation successful. PDF 2024_Q3_234234.pdf is created."}
+             {:ok, "Validation successful. PDF 2025_Q3_234234.pdf is created."}
   end
 
   # Test for a valid German VAT ID ("DE" followed by 9 digits)
   test "Valid German VAT ID 9 digits" do
     invalid_address =
       @valid_invoice.seller_trade_party
-      |> Map.put(:tax_number, nil)
-      |> Map.put(:vat_number, "DE812526315")
+      |> Map.put(:tax_id, nil)
+      |> Map.put(:vat_id, "DE812526315")
 
     invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
-             {:ok, "Validation successful. PDF 2024_Q3_234234.pdf is created."}
+             {:ok, "Validation successful. PDF 2025_Q3_234234.pdf is created."}
   end
 
   # Test for an invalid German tax number (wrong format)
   test "InValid German VAT ID" do
     invalid_address =
       @valid_invoice.seller_trade_party
-      |> Map.put(:tax_number, nil)
-      |> Map.put(:vat_number, "1DE13456789")
+      |> Map.put(:tax_id, nil)
+      |> Map.put(:vat_id, "1DE13456789")
 
     invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
 
@@ -506,8 +478,8 @@ defmodule ExInvoiceTest do
   test "Invalid German VAT ID too short" do
     invalid_address =
       @valid_invoice.seller_trade_party
-      |> Map.put(:tax_number, nil)
-      |> Map.put(:vat_number, "DE12345678")
+      |> Map.put(:tax_id, nil)
+      |> Map.put(:vat_id, "DE12345678")
 
     invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
 
@@ -520,8 +492,8 @@ defmodule ExInvoiceTest do
   test "Invalid German VAT ID (empty string)" do
     invalid_address =
       @valid_invoice.seller_trade_party
-      |> Map.put(:tax_number, nil)
-      |> Map.put(:vat_number, "")
+      |> Map.put(:tax_id, nil)
+      |> Map.put(:vat_id, "")
 
     invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
 
@@ -534,8 +506,8 @@ defmodule ExInvoiceTest do
   test "Invalid German VAT ID and Tax-ID (nil)" do
     invalid_address =
       @valid_invoice.seller_trade_party
-      |> Map.put(:tax_number, nil)
-      |> Map.put(:vat_number, nil)
+      |> Map.put(:tax_id, nil)
+      |> Map.put(:vat_id, nil)
 
     invalid_invoice = Map.put(@valid_invoice, :seller_trade_party, invalid_address)
 
@@ -548,20 +520,20 @@ defmodule ExInvoiceTest do
   # Test for Invalid item name too long
   test "Invalid item name too long" do
     invalid_invoice =
-      update_in(@valid_invoice[:invoice_items], fn items ->
-        [%{Enum.at(items, 0) | item_name: String.duplicate("A", 51)}]
+      update_in(@valid_invoice[:included_supply_chain_trade_line_item], fn items ->
+        [%{Enum.at(items, 0) | name: String.duplicate("A", 51)}]
       end)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice #{invalid_invoice.id}: item_name exceeds maximum length of 25 characters."}
+              "Validation failed for invoice #{invalid_invoice.id}: name exceeds maximum length of 25 characters."}
   end
 
   # Test for Invalid item quantity is nil
   test "Invalid item quantity is nil" do
     invalid_invoice =
-      update_in(@valid_invoice[:invoice_items], fn items ->
-        [%{Enum.at(items, 0) | item_quantity: nil}]
+      update_in(@valid_invoice[:included_supply_chain_trade_line_item], fn items ->
+        [%{Enum.at(items, 0) | billed_quantity: nil}]
       end)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
@@ -572,8 +544,8 @@ defmodule ExInvoiceTest do
   # Test Invalid item quantity is not a number
   test "Invalid item quantity is not a number" do
     invalid_invoice =
-      update_in(@valid_invoice[:invoice_items], fn items ->
-        [%{Enum.at(items, 0) | item_quantity: "invalid"}]
+      update_in(@valid_invoice[:included_supply_chain_trade_line_item], fn items ->
+        [%{Enum.at(items, 0) | billed_quantity: "invalid"}]
       end)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
@@ -584,8 +556,8 @@ defmodule ExInvoiceTest do
   # Test Invalid item quantity is negative anumber
   test "Invalid item quantity is a negative number" do
     invalid_invoice =
-      update_in(@valid_invoice[:invoice_items], fn items ->
-        [%{Enum.at(items, 0) | item_quantity: -2}]
+      update_in(@valid_invoice[:included_supply_chain_trade_line_item], fn items ->
+        [%{Enum.at(items, 0) | billed_quantity: -2}]
       end)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
@@ -596,18 +568,18 @@ defmodule ExInvoiceTest do
   # total net not correct
   test "Item level total net not correct" do
     invalid_invoice =
-      update_in(@valid_invoice[:invoice_items], fn items ->
-        [%{Enum.at(items, 0) | item_total_net: -184}]
+      update_in(@valid_invoice[:included_supply_chain_trade_line_item], fn items ->
+        [%{Enum.at(items, 0) | line_total_amount: -184}]
       end)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice 2024_Q3_234234: Invalid total net: expected 1000, but got -184"}
+              "Validation failed for invoice 2025_Q3_234234: Invalid total net: expected 1000.00, but got -184"}
   end
 
   # Test invalid tax rate (negative)
   test "Negative tax rate" do
-    invalid_invoice = Map.put(@valid_invoice, :invoice_tax_rate, -19)
+    invalid_invoice = Map.put(@valid_invoice, :rate_applicable_percent, -19)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
@@ -616,7 +588,7 @@ defmodule ExInvoiceTest do
 
   # Test for missing invoice items
   test "Missing invoice items" do
-    invalid_invoice = Map.put(@valid_invoice, :invoice_items, [])
+    invalid_invoice = Map.put(@valid_invoice, :included_supply_chain_trade_line_item, [])
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
@@ -625,24 +597,24 @@ defmodule ExInvoiceTest do
 
   # Test for invalid total_net (0 or negative)
   test "Invalid total_net" do
-    invalid_invoice = Map.put(@valid_invoice, :invoice_net, 0)
+    invalid_invoice = Map.put(@valid_invoice, :line_total_amount, 0)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice 2024_Q3_234234: Tax_rate must be 0, 7, or 19., The calculated net price 2000 does not match the expected invoice net 0."}
+              "Validation failed for invoice 2025_Q3_234234: Tax_rate must be 0, 7, or 19., The calculated net price 2000.00 does not match the expected invoice net 0."}
   end
 
   test "Negative total_net" do
-    invalid_invoice = Map.put(@valid_invoice, :invoice_net, -100)
+    invalid_invoice = Map.put(@valid_invoice, :line_total_amount, -100)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice #{invalid_invoice.id}: Tax_rate must be 0, 7, or 19., The calculated net price 2000 does not match the expected invoice net -100."}
+              "Validation failed for invoice #{invalid_invoice.id}: Tax_rate must be 0, 7, or 19., The calculated net price 2000.00 does not match the expected invoice net -100."}
   end
 
   # Test for invalid total_tax (negative)
   test "Negative total_tax" do
-    invalid_invoice = Map.put(@valid_invoice, :invoice_tax, -50)
+    invalid_invoice = Map.put(@valid_invoice, :tax_total_amount, -50)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
@@ -651,7 +623,7 @@ defmodule ExInvoiceTest do
 
   # Test for invalid tax_rate (not 0, 7, or 19)
   test "Invalid tax_rate" do
-    invalid_invoice = Map.put(@valid_invoice, :invoice_tax_rate, 5)
+    invalid_invoice = Map.put(@valid_invoice, :rate_applicable_percent, 5)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
@@ -660,20 +632,20 @@ defmodule ExInvoiceTest do
 
   # Test for mismatched tax_rate calculation
   test "Mismatched tax_rate calculation" do
-    invalid_invoice = Map.put(@valid_invoice, :invoice_tax, 400)
+    invalid_invoice = Map.put(@valid_invoice, :tax_total_amount, 400)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
               "Validation failed for invoice #{invalid_invoice.id}: Tax_rate does not match the calculated tax rate"}
   end
 
-  # Test for mismatched invoice_total
-  test "Mismatched invoice_total" do
-    invalid_invoice = Map.put(@valid_invoice, :invoice_total, 2400)
+  # Test for mismatched grand_total_amount
+  test "Mismatched grand_total_amount" do
+    invalid_invoice = Map.put(@valid_invoice, :grand_total_amount, 2400)
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice #{invalid_invoice.id}: Invoice total does not match: expected 2380, but got 2400"}
+              "Validation failed for invoice #{invalid_invoice.id}: Invoice total does not match: expected 2380.00, but got 2400"}
   end
 
   # -----------------------
