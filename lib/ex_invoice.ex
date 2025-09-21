@@ -103,7 +103,7 @@ defmodule ExInvoice do
           Path.join("invoices_output", "#{invoice.id}.xml")
         )
 
-         ExInvoicePDF.generate_pdf(invoice)
+        ExInvoicePDF.generate_pdf(invoice)
         {:ok, "Validation successful. PDF #{invoice.id}.pdf is created."}
 
       _ ->
@@ -488,12 +488,12 @@ defmodule ExInvoice do
     end
   end
 
-  #Transfers the invoice item data to the item group “b_included_supply_chain_trade_line_item”
+  # Transfers the invoice item data to the item group “b_included_supply_chain_trade_line_item”
   defp set_factur_x_items(%{included_supply_chain_trade_line_item: items}) do
     Enum.map(items, fn item -> factur_x_items(item) end)
   end
 
-  #Struct from the FacturXIsctli module for transferring invoice item data for the creation of ZUGFeRD/Factur-X e-invoices
+  # Struct from the FacturXIsctli module for transferring invoice item data for the creation of ZUGFeRD/Factur-X e-invoices
   def factur_x_items(item) do
     %FacturXIsctli{
       b_associated_document_line_document_line_id: nil,
@@ -725,7 +725,7 @@ defmodule ExInvoice do
         nil,
       # Committed by positive payment amount BR-CO-25
       w_specified_trade_payment_terms_description:
-      "Rechnungsbetrag zahlbar per #{invoice.payment_methode} abzüglich #{invoice.invoice_payment_skonto_rate}%
+        "Rechnungsbetrag zahlbar per #{invoice.payment_methode} abzüglich #{invoice.invoice_payment_skonto_rate}%
       Skonto innerhalb von #{invoice.invoice_payment_skonto_days} Tagen ab Rechnungsdatum",
       w_due_date_date_time_date_time_string: nil,
       w_direct_debit_mandate_id: nil,
