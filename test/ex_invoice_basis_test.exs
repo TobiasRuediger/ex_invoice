@@ -601,7 +601,7 @@ defmodule ExInvoiceTest do
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice 2025_Q3_234234: Tax_rate must be 0, 7, or 19., The calculated net price 2000.00 does not match the expected invoice net 0."}
+              "Validation failed for invoice 2025_Q3_234234: Tax_rate must be 0, 7, or 19., The calculated net price 2000.0000 does not match the expected invoice net 0."}
   end
 
   test "Negative total_net" do
@@ -609,7 +609,7 @@ defmodule ExInvoiceTest do
 
     assert ExInvoice.validate_invoice(invalid_invoice) ==
              {:error,
-              "Validation failed for invoice #{invalid_invoice.id}: Tax_rate must be 0, 7, or 19., The calculated net price 2000.00 does not match the expected invoice net -100."}
+              "Validation failed for invoice #{invalid_invoice.id}: Tax_rate must be 0, 7, or 19., The calculated net price 2000.0000 does not match the expected invoice net -100."}
   end
 
   # Test for invalid total_tax (negative)

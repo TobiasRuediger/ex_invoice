@@ -233,7 +233,7 @@ defmodule ExInvoicePDF do
           <td>#{item.description}</td>
           <td>#{item.billed_quantity}</td>
           <td>#{item.line_id || "Stück"}</td>
-          <td>#{Decimal.to_string(Decimal.round(Decimal.from_float(item.charge_amount), 2), :normal)}</td>
+          <td>#{Decimal.to_string(Decimal.round(Decimal.from_float(item.charge_amount), 4), :normal)}</td>
           <td>#{Decimal.to_string(Decimal.round(Decimal.from_float(item.line_total_amount), 2), :normal)}</td>
       </tr>
       """

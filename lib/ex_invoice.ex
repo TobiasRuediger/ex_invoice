@@ -397,7 +397,7 @@ defmodule ExInvoice do
           end)
 
         formatted_net_price =
-          Decimal.to_string(Decimal.round(Decimal.from_float(net_price), 2), :normal)
+          Decimal.to_string(Decimal.round(Decimal.from_float(net_price), 4), :normal)
 
         if net_price == expected_net do
           {:ok, "All items are valid. Net value of all items are #{net_price} €"}

@@ -1085,11 +1085,11 @@ defmodule CreateFacturX do
       [
         element(
           "ram:ChargeAmount",
-          if isctli.b_gross_price_product_trade_price_charge_amount not in [nil, "", 0, 0.00] do
+          if isctli.b_gross_price_product_trade_price_charge_amount not in [nil, "", 0, 0.00, 0.0000] do
             Decimal.to_string(
               Decimal.round(
                 Decimal.from_float(isctli.b_gross_price_product_trade_price_charge_amount),
-                2
+                4
               ),
               :normal
             )
@@ -1109,11 +1109,11 @@ defmodule CreateFacturX do
     element("ram:NetPriceProductTradePrice", [
       element(
         "ram:ChargeAmount",
-        if isctli.b_net_price_product_trade_price_charge_amount not in [nil, "", 0, 0.00] do
+        if isctli.b_net_price_product_trade_price_charge_amount not in [nil, "", 0, 0.00, 0.0000] do
           Decimal.to_string(
             Decimal.round(
               Decimal.from_float(isctli.b_net_price_product_trade_price_charge_amount),
-              2
+              4
             ),
             :normal
           )

@@ -21,11 +21,11 @@
         <ram:LineID>1</ram:LineID>
       </ram:AssociatedDocumentLineDocument>
       <ram:SpecifiedTradeProduct>
-        <ram:Name>Awesome Wooden Chair</ram:Name>
+        <ram:Name>Fantastic Chair</ram:Name>
       </ram:SpecifiedTradeProduct>
       <ram:SpecifiedLineTradeAgreement>
         <ram:NetPriceProductTradePrice>
-          <ram:ChargeAmount>1.00</ram:ChargeAmount>
+          <ram:ChargeAmount>1.0000</ram:ChargeAmount>
         </ram:NetPriceProductTradePrice>
       </ram:SpecifiedLineTradeAgreement>
       <ram:SpecifiedLineTradeDelivery>
@@ -44,9 +44,9 @@
     </ram:IncludedSupplyChainTradeLineItem>
     <ram:ApplicableHeaderTradeAgreement>
       <ram:SellerTradeParty>
-        <ram:Name>Kreiger, Crooks and Cartwright</ram:Name>
+        <ram:Name>Brown-Barrows</ram:Name>
         <ram:PostalTradeAddress>
-          <ram:CityName>East Morgan</ram:CityName>
+          <ram:CityName>North Lupe</ram:CityName>
           <ram:CountryID>DE</ram:CountryID>
         </ram:PostalTradeAddress>
         <ram:SpecifiedTaxRegistration>
@@ -54,9 +54,9 @@
         </ram:SpecifiedTaxRegistration>
       </ram:SellerTradeParty>
       <ram:BuyerTradeParty>
-        <ram:Name>Rosenbaum-Von</ram:Name>
+        <ram:Name>Metz-Reynolds</ram:Name>
         <ram:PostalTradeAddress>
-          <ram:CityName>Koelpin</ram:CityName>
+          <ram:CityName>Port Elenora</ram:CityName>
           <ram:CountryID>DE</ram:CountryID>
         </ram:PostalTradeAddress>
       </ram:BuyerTradeParty>
