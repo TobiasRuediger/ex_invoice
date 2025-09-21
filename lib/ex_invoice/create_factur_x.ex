@@ -208,7 +208,7 @@ defmodule CreateFacturX do
     ]
   ]
 
-  # Map for code verification according to ISOIEC6523
+  # List for code verification according to ISOIEC6523
   @code_list_iso_iec_6523 [
     "0002",
     "0003",
