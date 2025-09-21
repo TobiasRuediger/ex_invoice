@@ -355,9 +355,6 @@ defmodule ExInvoice do
     formatted_expected_total =
       Decimal.to_string(Decimal.round(Decimal.from_float(expected_total), 2), :normal)
 
-    #    |> Decimal.round(2)
-    #    |> Decimal.to_string(:normal)
-
     if abs(expected_total - grand_total_amount) > 0.01 do
       {:error,
        "Invoice total does not match: expected #{formatted_expected_total}, but got #{grand_total_amount}"}
@@ -401,9 +398,6 @@ defmodule ExInvoice do
 
         formatted_net_price =
           Decimal.to_string(Decimal.round(Decimal.from_float(net_price), 2), :normal)
-
-        #     |> Decimal.round(2)
-        #     |> Decimal.to_string(:normal)
 
         if net_price == expected_net do
           {:ok, "All items are valid. Net value of all items are #{net_price} €"}
@@ -461,9 +455,6 @@ defmodule ExInvoice do
 
             formatted_calculated_total =
               Decimal.to_string(Decimal.round(Decimal.from_float(calculated_total), 2), :normal)
-
-            #     |> Decimal.round(2)
-            #      |> Decimal.to_string(:normal)
 
             if calculated_total == total_net do
               {:ok, total_net}
