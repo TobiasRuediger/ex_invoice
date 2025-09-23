@@ -1927,7 +1927,10 @@ defmodule CreateFacturX do
         tax_rate
       )
 
-    if b_specified_trade_settlement_line_monetary_summation_line_total_amount > 0 do
+    if b_specified_trade_settlement_line_monetary_summation_line_total_amount > 0 or
+         (factur_x.m_profil_factur_x in ["BASICWL"] and
+            factur_x.w_applicable_header_trade_settlement_applicable_trade_tax_rate_applicable_percent ==
+              tax_rate) do
       element("ram:ApplicableTradeTax", [
         element(
           "ram:CalculatedAmount",
@@ -1964,15 +1967,24 @@ defmodule CreateFacturX do
         ),
         element(
           "ram:BasisAmount",
-          Decimal.to_string(
-            Decimal.round(
-              Decimal.from_float(
-                b_specified_trade_settlement_line_monetary_summation_line_total_amount
+          if factur_x.w_applicable_trade_tax_basis_amount in [
+               nil,
+               "",
+               0,
+               0.00
+             ] do
+            Decimal.to_string(
+              Decimal.round(
+                Decimal.from_float(
+                  b_specified_trade_settlement_line_monetary_summation_line_total_amount
+                ),
+                2
               ),
-              2
-            ),
-            :normal
-          )
+              :normal
+            )
+          else
+            factur_x.w_applicable_trade_tax_basis_amount
+          end
         ),
         element(
           "ram:CategoryCode",

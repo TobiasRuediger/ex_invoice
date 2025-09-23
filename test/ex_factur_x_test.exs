@@ -187,7 +187,7 @@ defmodule ExFacturXTest do
     w_applicable_header_trade_delivery_actual_delivery_supply_chain_event_occurrence_date_time_date_time_string:
       "20250801",
     m_invoice_currency_code: "EUR",
-    w_applicable_header_trade_settlement_applicable_trade_tax_calculated_amount: 1.00,
+    w_applicable_header_trade_settlement_applicable_trade_tax_calculated_amount: 0.19,
     w_applicable_trade_tax_basis_amount: 1.00,
     w_applicable_header_trade_settlement_applicable_trade_tax_category_code: "S",
     w_applicable_header_trade_settlement_applicable_trade_tax_rate_applicable_percent: 19,
