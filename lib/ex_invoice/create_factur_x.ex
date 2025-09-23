@@ -492,6 +492,7 @@ defmodule CreateFacturX do
   # Check whether all fields required for the profile have been filled in; if not, return an error.
   # The required data is identified by the abbreviation at the beginning with reference to the transferred profile.
 
+  # specify which fields should be checked
   def check_mandatory(factur_x, profil_identifier) do
     mandatory_fields = [
       {:m_profil_factur_x, factur_x.m_profil_factur_x},
@@ -528,9 +529,12 @@ defmodule CreateFacturX do
     ]
 
     # Filter out only fields that are nil or empty
+    # the field belongs to the list
     empty_fields =
       Enum.filter(mandatory_fields, fn {key, value} ->
+        # does the field match the profile
         Enum.any?(profil_identifier, fn identifier ->
+          # If the field belongs to the profile and is empty, then error
           String.starts_with?(Atom.to_string(key), identifier)
         end) and (is_nil(value) or value == "")
       end)
@@ -550,12 +554,17 @@ defmodule CreateFacturX do
 
       # Start check mandatory item fields
       # Check whether all item fields required for the profile are filled in; if not, return an error.
+      # create a list starting with 1
       empty_item_fields =
         Enum.with_index(factur_x.b_included_supply_chain_trade_line_item, 1)
+        # go through the list
         |> Enum.map(fn {isctli, idx} ->
+          # the field belongs to the list
           missing_fields =
             Enum.filter(mandatory_item_fields, fn field ->
+              # does the field match the profile
               Enum.any?(profil_identifier, fn identifier ->
+                # If the field belongs to the profile and is empty, then error
                 String.starts_with?(Atom.to_string(field), identifier)
               end) and (is_nil(Map.get(isctli, field)) or Map.get(isctli, field) == "")
             end)
@@ -580,7 +589,9 @@ defmodule CreateFacturX do
     wrong_filled_fields =
       factur_x
       |> Map.from_struct()
+      # go through the list
       |> Enum.filter(fn {key, value} ->
+        # Are there any fields filled in that do not match the profile
         Enum.all?(profil_identifier, fn identifier ->
           not String.starts_with?(Atom.to_string(key), identifier)
         end) and not (is_nil(value) or value == "")
@@ -588,10 +599,12 @@ defmodule CreateFacturX do
       |> Enum.map(fn {key, _} -> key end)
 
     # Exclude certain list fields from the check
+    # Special rule for minimum: the list values are not nil
     cleaned_wrong_filled_fields =
       if profil_identifier in ["m", :m] or
            (is_list(profil_identifier) and "m" in profil_identifier) do
         Enum.reject(wrong_filled_fields, fn key ->
+          #
           key in [:w_exchanged_document_included_note, :b_included_supply_chain_trade_line_item]
         end)
       else
@@ -610,6 +623,7 @@ defmodule CreateFacturX do
     if sorted_wrong_filled_fields != [] do
       {:error, {sorted_wrong_filled_fields, "Wrong field is filled"}}
     else
+      # Check the items now.
       wrong_filled_item_fields =
         factur_x.b_included_supply_chain_trade_line_item
         |> Enum.with_index(1)
@@ -619,6 +633,8 @@ defmodule CreateFacturX do
             |> Map.from_struct()
             |> Map.keys()
             |> Enum.filter(fn field ->
+              # Are there any fields filled in that do not match the profile
+              # distinguish whether there are multiple entries or only one
               Enum.all?(profil_identifier, fn identifier ->
                 not String.starts_with?(Atom.to_string(field), identifier)
               end) and
@@ -629,6 +645,7 @@ defmodule CreateFacturX do
                   "" ->
                     false
 
+                  # more than one
                   value when is_list(value) ->
                     Enum.any?(value, fn
                       val when is_binary(val) and val != "" -> true
@@ -636,6 +653,7 @@ defmodule CreateFacturX do
                       _ -> false
                     end)
 
+                  # is one
                   val when is_binary(val) and val != "" ->
                     true
 
@@ -648,6 +666,7 @@ defmodule CreateFacturX do
         end)
         |> Enum.reject(fn {_idx, fields} -> fields == [] end)
 
+      # Ensure that alphabetical order is always returned, which is important for test cases.
       sorted_wrong_filled_item_fields =
         wrong_filled_item_fields
         |> Enum.map(fn {idx, fields} ->
@@ -673,7 +692,10 @@ defmodule CreateFacturX do
     invalid_float_fields =
       factur_x
       |> Map.from_struct()
+      # go through the list
       |> Enum.filter(fn {key, value} ->
+        # Are there any fields filled in that do not match the profile
+        # Only check fields that contain the amount but not amount currency_id -> does not contain an amount
         Enum.any?(profil_identifier, fn identifier ->
           String.starts_with?(Atom.to_string(key), identifier)
         end) and String.contains?(Atom.to_string(key), "amount") and
@@ -694,7 +716,10 @@ defmodule CreateFacturX do
             isctli
             |> Map.from_struct()
             |> Map.keys()
+            # go through the list
             |> Enum.filter(fn field ->
+              # Are there any fields filled in that do not match the profile
+              # Only check fields that contain the amount but not amount currency_id -> does not contain an amount
               Enum.any?(profil_identifier, fn identifier ->
                 String.starts_with?(Atom.to_string(field), identifier)
               end) and not (is_nil(Map.get(isctli, field)) or Map.get(isctli, field) == "") and
@@ -715,14 +740,16 @@ defmodule CreateFacturX do
     end
   end
 
-  # Check the scheme_id fields for valid content (isoiec6523) using the map defined at the beginning.
+  # Check the scheme_id fields for valid content (isoiec6523) using the list defined at the beginning.
   def check_code_list(factur_x, profil_identifier) do
     invalid_code_fields =
       factur_x
       |> Map.from_struct()
       |> Enum.filter(fn {key, value} ->
         # only check relevant fields, e.g. global_id_scheme_id
+        # Value not in reference list
         Enum.any?(profil_identifier, fn identifier ->
+          # Only check fields that contain the scheme_id but not vat_identifier_id_scheme_id and local_tax_id_scheme_id  -> use a different code list
           String.starts_with?(Atom.to_string(key), identifier)
         end) and String.contains?(Atom.to_string(key), "scheme_id") and
           not String.contains?(Atom.to_string(key), "vat_identifier_id_scheme_id") and
@@ -741,6 +768,8 @@ defmodule CreateFacturX do
           isctli
           |> Map.from_struct()
           |> Enum.filter(fn {key, value} ->
+            # Only check fields that contain the scheme_id but not vat_identifier_id_scheme_id  -> use a different code list
+            # Value not in reference list
             Enum.any?(profil_identifier, fn identifier ->
               String.starts_with?(Atom.to_string(key), identifier)
             end) and String.contains?(Atom.to_string(key), "scheme_id") and
