@@ -31,7 +31,7 @@ defmodule CreateFacturX do
   checking the data each time the elements were filled would have generated unnecessary program code, which is now done in a compact manner.
   Finally, the XML file is generated.
 
-  Data transfer -> Checks -> Creation of XML file -> Removal of empty XML elements -> Generation of XML file.
+  Data transfer -> Checks -> Creation of XML file -> Removal of empty XML elements -> Generation of XML file
 
   Program structure:
 
