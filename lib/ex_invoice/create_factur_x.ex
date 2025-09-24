@@ -31,7 +31,7 @@ defmodule CreateFacturX do
   checking the data each time the elements were filled would have generated unnecessary program code, which is now done in a compact manner.
   Finally, the XML file is generated.
 
-  Data transfer -> Checks -> Creation of XML file -> Removal of empty XML elements -> Generation of XML file
+  Data transfer -> Checks -> Creation of XML file -> Removal of empty XML elements -> Generation of XML file.
 
   Program structure:
 
@@ -2012,7 +2012,15 @@ defmodule CreateFacturX do
               :normal
             )
           else
-            factur_x.w_applicable_trade_tax_basis_amount
+            Decimal.to_string(
+              Decimal.round(
+                Decimal.from_float(
+
+            factur_x.w_applicable_trade_tax_basis_amount        ),
+                2
+              ),
+              :normal
+            )
           end
         ),
         element(
