@@ -442,7 +442,7 @@ defmodule ExFacturXTest do
              @basic_min,
              Path.join("invoices_output", "BASIC_min_Factur_x.xml")
            ) ==
-             {:ok, "XML wurde exportiert nach invoices_output/BASIC_min_Factur_x.xml"}
+             {:ok, "XML was exported to invoices_output/BASIC_min_Factur_x.xml"}
   end
 
   # Test the EN16931 profile with minimum requirements
@@ -451,7 +451,7 @@ defmodule ExFacturXTest do
              @en16931_min,
              Path.join("invoices_output", "EN16931_min_Factur_x.xml")
            ) ==
-             {:ok, "XML wurde exportiert nach invoices_output/EN16931_min_Factur_x.xml"}
+             {:ok, "XML was exported to invoices_output/EN16931_min_Factur_x.xml"}
   end
 
   # Test the EN16931 profile wirh 2 invoice items
@@ -460,7 +460,7 @@ defmodule ExFacturXTest do
              @en16931_2_items,
              Path.join("invoices_output", "EN16931_2_items_Factur_x.xml")
            ) ==
-             {:ok, "XML wurde exportiert nach invoices_output/EN16931_2_items_Factur_x.xml"}
+             {:ok, "XML was exported to invoices_output/EN16931_2_items_Factur_x.xml"}
   end
 
   # END - Main Testcases for developemnt
@@ -731,7 +731,7 @@ defmodule ExFacturXTest do
   # Initial test profil basic minimum with empty path
   test "BASIC min with empty path" do
     assert CreateFacturX.create_factur_x(@basic_min, "") ==
-             {:ok, "XML wurde exportiert nach factur-x.xml"}
+             {:ok, "XML was exported to factur-x.xml"}
   end
 
   # Test nil profil
@@ -743,7 +743,7 @@ defmodule ExFacturXTest do
              Path.join("invoices_output", "BASIC_min_Factur_x.xml")
            ) ==
              {:error,
-              "XML invoices_output/BASIC_min_Factur_x.xml wurde nicht erstellt - Kein Profil übergeben"}
+              "XML invoices_output/BASIC_min_Factur_x.xml not created - No profile provided"}
   end
 
   # Test the BASIC profile with minimum requirements plus List field
@@ -753,7 +753,7 @@ defmodule ExFacturXTest do
              Path.join("invoices_output", "BASIC_min_Factur_x_Content_note.xml")
            ) ==
              {:ok,
-              "XML wurde exportiert nach invoices_output/BASIC_min_Factur_x_Content_note.xml"}
+              "XML was exported to invoices_output/BASIC_min_Factur_x_Content_note.xml"}
   end
 
   # Test the EN16931 profile with item and more than 1 product characteristics
@@ -768,7 +768,7 @@ defmodule ExFacturXTest do
              Path.join("invoices_output", "EN16931_min_Factur_x_product_characteristics.xml")
            ) ==
              {:ok,
-              "XML wurde exportiert nach invoices_output/EN16931_min_Factur_x_product_characteristics.xml"}
+              "XML was exported to invoices_output/EN16931_min_Factur_x_product_characteristics.xml"}
   end
 
   # Test the BASIC profile with minimum requirements plus item Charge
@@ -780,7 +780,7 @@ defmodule ExFacturXTest do
              valid_basic_min,
              Path.join("invoices_output", "BASIC_min_Factur_x_Charge.xml")
            ) ==
-             {:ok, "XML wurde exportiert nach invoices_output/BASIC_min_Factur_x_Charge.xml"}
+             {:ok, "XML was exported to invoices_output/BASIC_min_Factur_x_Charge.xml"}
   end
 
   # Test the BASIC profile with minimum requirements plus item Allowance
@@ -794,7 +794,7 @@ defmodule ExFacturXTest do
              valid_basic_min,
              Path.join("invoices_output", "BASIC_min_Factur_x_Allowance.xml")
            ) ==
-             {:ok, "XML wurde exportiert nach invoices_output/BASIC_min_Factur_x_Allowance.xml"}
+             {:ok, "XML was exported to invoices_output/BASIC_min_Factur_x_Allowance.xml"}
   end
 
   # Test the MINIMUM profile with minimum requirements
@@ -803,7 +803,7 @@ defmodule ExFacturXTest do
              @minimum_min,
              Path.join("invoices_output", "MINIMUM_min_Factur_x.xml")
            ) ==
-             {:ok, "XML wurde exportiert nach invoices_output/MINIMUM_min_Factur_x.xml"}
+             {:ok, "XML was exported to invoices_output/MINIMUM_min_Factur_x.xml"}
   end
 
   # Test the MINIMUM profile for mandatory fields
@@ -858,7 +858,7 @@ defmodule ExFacturXTest do
              @basicwl_min,
              Path.join("invoices_output", "BASICWL_min_Factur_x.xml")
            ) ==
-             {:ok, "XML wurde exportiert nach invoices_output/BASICWL_min_Factur_x.xml"}
+             {:ok, "XML was exported to invoices_output/BASICWL_min_Factur_x.xml"}
   end
 
   # Test the BASICWL profile for mandatory fields

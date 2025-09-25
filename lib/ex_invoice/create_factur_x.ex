@@ -430,7 +430,7 @@ defmodule CreateFacturX do
   # Main Funktion
   def create_factur_x(%CreateFacturX{} = factur_x, path) do
     if is_nil(factur_x.m_profil_factur_x) do
-      {:error, "XML #{path} wurde nicht erstellt - Kein Profil übergeben"}
+      {:error, "XML #{path} not created - No profile provided"}
     else
       # Treating variables with the smallest possible profile makes it possible to check filled variables for consistency with the transferred profile
       # The permissible abbreviations are determined based on the submitted profile.
@@ -478,11 +478,11 @@ defmodule CreateFacturX do
         path = if path == "", do: "factur-x.xml", else: path
 
         File.write!(path, xml_content)
-        {:ok, "XML wurde exportiert nach #{path}"}
+        {:ok, "XML was exported to #{path}"}
       else
         {:error, reason} ->
           #   IO.puts(" XML #{path} wurde nicht erstellt. Grund: #{inspect(reason)}") # aktivate for better testing feedbacks
-          {:error, "XML #{path} wurde nicht erstellt siehe vorherige Meldungen "}
+          {:error, "XML #{path} was not created see previous messages "}
       end
     end
   end
@@ -2014,9 +2014,7 @@ defmodule CreateFacturX do
           else
             Decimal.to_string(
               Decimal.round(
-                Decimal.from_float(
-
-            factur_x.w_applicable_trade_tax_basis_amount        ),
+                Decimal.from_float(factur_x.w_applicable_trade_tax_basis_amount),
                 2
               ),
               :normal
